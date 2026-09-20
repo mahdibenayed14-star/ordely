@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#087f6f">
+<meta name="description" content="Ordely — agent IA de confirmation de commandes, démo vocale tunisienne">
+<link rel="manifest" href="manifest.json">
+<title>Ordely — AI Order Confirmation</title>
+<style>
+:root{--brand:#087f6f;--brand2:#0c9a87;--ink:#172033;--muted:#687386;--bg:#f3f6f7;--card:#fff;--line:#dce4e7;--soft:#e7f5f1;--dark:#101820;--danger:#b42318;--amber:#9a6700}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:880px;margin:auto;padding:14px 12px 40px}.top{background:linear-gradient(135deg,#fff,#e7f6f2);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between}.brand{display:flex;gap:10px;align-items:center}.logo{width:44px;height:44px;border-radius:14px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:21px;font-weight:850}
+h1{margin:0;font-size:24px}h2{font-size:18px;margin:0 0 12px}p{color:var(--muted);line-height:1.45;margin:8px 0}
+.badge{font-size:11px;font-weight:800;background:var(--soft);color:#086c5e;padding:5px 9px;border-radius:999px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:15px;margin-bottom:12px;box-shadow:0 5px 20px #19313b0a}
+.status{display:flex;align-items:center;gap:8px;font-weight:750;margin-top:10px}.dot{width:10px;height:10px;border-radius:50%;background:#9da7ae}.ok{background:#0a9b68}.bad{background:#cf4337}.listen{background:#f0a000}
+.btn{border:0;border-radius:12px;padding:11px 13px;font-weight:750;cursor:pointer;margin:4px 4px 4px 0}.primary{background:var(--brand);color:#fff}.secondary{background:#edf2f3;color:var(--ink)}.danger{background:#fff0ee;color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.field{border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:#fbfcfc}.field small{display:block;color:var(--muted);font-size:10px}.field b{display:block;margin-top:3px;font-size:14px}
+.chat{background:#f7fafb;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:220px;max-height:420px;overflow:auto}.bubble{padding:10px 12px;border-radius:13px;margin:7px 0;max-width:94%;line-height:1.4}.agent{background:#e6f4f0}.client{background:#eef1f4;margin-left:auto}.system{background:var(--dark);color:#e8eef2;font-family:ui-monospace,monospace;font-size:11px}
+.input{display:flex;gap:7px;margin-top:9px}.input input{flex:1;min-width:0;border:1px solid #cbd6da;border-radius:12px;padding:12px;font-size:15px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.kpi{border:1px solid var(--line);background:#fbfcfc;border-radius:12px;padding:9px}.kpi strong{display:block;font-size:17px}.kpi span{font-size:10px;color:var(--muted)}
+.progress{height:8px;background:#e7ebee;border-radius:20px;overflow:hidden;margin:10px 0}.progress i{display:block;height:100%;width:0;background:var(--brand);transition:width .25s}
+.step{display:flex;gap:9px;align-items:center;padding:8px;border-bottom:1px solid #eef1f2}.step:last-child{border:0}.step .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#edf2f3;font-size:11px;font-weight:800}.step.done .n{background:var(--brand);color:#fff}.step.current .n{background:#f5a400;color:#fff}.step b{font-size:13px}.step small{display:block;color:var(--muted)}
+.notice{padding:10px 11px;border-radius:11px;background:#fff8e8;color:#795600;font-size:12px}
+footer{text-align:center;color:#7e8990;font-size:10px;margin-top:16px}
+@media(max-width:520px){h1{font-size:21px}.grid{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:1fr 1fr 1fr}.row{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="top">
+ <div class="row">
+  <div class="brand"><div class="logo">O</div><div><h1>Ordely</h1><span class="badge">DEMO JURY • VOIX • TUNISIE</span></div></div>
+  <button class="btn secondary" onclick="installPWA()">Installer</button>
+ </div>
+ <p><b>Agent IA de confirmation de commandes.</b> Démonstration vocale navigateur avec parcours métier contrôlé.</p>
+ <div class="status"><span id="dot" class="dot"></span><span id="status">Microphone non testé</span></div>
+ <button class="btn primary" onclick="startFlow()">▶ Démarrer</button>
+ <button class="btn secondary" onclick="testMic()">🎤 Tester micro</button>
+ <button class="btn secondary" onclick="listen()">🗣️ Parler</button>
+ <button class="btn secondary" onclick="repeatLast()">🔊 Répéter</button>
+ <button class="btn secondary" onclick="resetAll()">↻ Réinitialiser</button>
+</section>
+
+<section class="card">
+ <h2>Commande #ORD-2026-0919</h2>
+ <div class="grid">
+  <div class="field"><small>Client</small><b id="f-name">Ahmed Ben Ali</b></div>
+  <div class="field"><small>Téléphone</small><b id="f-phone">20 123 456</b></div>
+  <div class="field"><small>Produit</small><b id="f-product">Casque audio rouge</b></div>
+  <div class="field"><small>Taille</small><b id="f-size">S / Small</b></div>
+  <div class="field"><small>Adresse</small><b id="f-address">15 rue de Tunis, Sfax</b></div>
+  <div class="field"><small>Total</small><b id="f-total">189 DT</b></div>
+ </div>
+ <div class="progress"><i id="prog"></i></div>
+ <div id="orderStatus" class="notice">Statut : NEW</div>
+</section>
+
+<section class="card">
+ <h2>Parcours de confirmation</h2>
+ <div id="steps">
+  <div class="step current" data-step="1"><div class="n">1</div><div><b>Salutation</b><small>Identifier la commande</small></div></div>
+  <div class="step" data-step="2"><div class="n">2</div><div><b>Produit & quantité</b><small>Vérifier les éléments critiques</small></div></div>
+  <div class="step" data-step="3"><div class="n">3</div><div><b>Adresse</b><small>Confirmer la livraison</small></div></div>
+  <div class="step" data-step="4"><div class="n">4</div><div><b>Identité & téléphone</b><small>Valider les coordonnées</small></div></div>
+  <div class="step" data-step="5"><div class="n">5</div><div><b>Décision</b><small>Confirmer / modifier / annuler / rappeler</small></div></div>
+ </div>
+</section>
+
+<section class="card">
+ <h2>Conversation</h2>
+ <div id="chat" class="chat"><div class="bubble system">Ordely prêt. Appuie sur « Démarrer ».</div></div>
+ <div class="input"><input id="msg" placeholder="Ex. Ey nconfirmi / nheb nbaddel l'adresse / annuli..." onkeydown="if(event.key==='Enter')sendText()"><button class="btn primary" onclick="sendText()">Envoyer</button></div>
+ <div id="heard" class="notice" style="display:none;margin-top:8px"></div>
+</section>
+
+<section class="card">
+ <h2>État métier & audit</h2>
+ <div class="kpis">
+  <div class="kpi"><strong id="intent">—</strong><span>INTENT</span></div>
+  <div class="kpi"><strong id="decision">—</strong><span>DÉCISION</span></div>
+  <div class="kpi"><strong id="audit">READY</strong><span>AUDIT</span></div>
+ </div>
+ <p id="auditLine">Aucune action critique exécutée.</p>
+</section>
+
+<section class="card">
+ <h2>Commandes rapides pour le jury</h2>
+ <button class="btn secondary" onclick="quick('confirm')">✓ Confirmer</button>
+ <button class="btn danger" onclick="quick('cancel')">✕ Annuler</button>
+ <button class="btn secondary" onclick="quick('modify')">✎ Modifier l'adresse</button>
+ <button class="btn secondary" onclick="quick('callback')">↻ Demander un rappel</button>
+</section>
+
+<footer>Ordely prototype — aucune téléphonie réelle, aucun enregistrement audio et aucune base de production dans cette démo.</footer>
+</div>
+<script>
+const S={started:false,step:1,last:"",recognition:null,installPrompt:null,status:"NEW"};
+const FLOW=[
+ "Aslema Ahmed, ena Ordely. N3ayetlek 3la commande mte3ek : casque audio rouge, quantité 1, taille S, total 189 dinars. T7eb nconfirmiw lcommande ?",
+ "Très bien. Tawa nثبتou l’adresse : 15 rue de Tunis, Sfax. Heya s7i7a ?",
+ "Merci. Nثبتou numéro 20 123 456 w l’esm Ahmed Ben Ali. Kol chay s7i7 ?",
+ "Mrigel. T7eb tconfirmi lcommande, tbaddel haja, tannuliha, wela nعاودولك ba3d ?"
+];
+function add(who,txt,type){const c=document.getElementById("chat"),d=document.createElement("div");d.className="bubble "+type;d.innerHTML="<b>"+who+"</b><br>"+esc(txt);c.appendChild(d);c.scrollTop=c.scrollHeight}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function st(t,k=""){document.getElementById("status").textContent=t;document.getElementById("dot").className="dot "+k}
+function speak(t){if(!("speechSynthesis"in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const vs=speechSynthesis.getVoices();const v=vs.find(x=>/^ar-TN$/i.test(x.lang))||vs.find(x=>/^ar/i.test(x.lang))||vs.find(x=>/^fr-TN$/i.test(x.lang))||vs.find(x=>/^fr/i.test(x.lang));if(v){u.voice=v;u.lang=v.lang}else u.lang="fr-FR";u.rate=.93;speechSynthesis.speak(u);S.last=t}
+async function testMic(){if(!window.isSecureContext&&location.hostname!=="localhost"){st("HTTPS requis — page locale","bad");add("Système","Le microphone nécessite une origine sécurisée HTTPS.","system");return false}if(!navigator.mediaDevices?.getUserMedia){st("API micro indisponible","bad");return false}try{const x=await navigator.mediaDevices.getUserMedia({audio:true});x.getTracks().forEach(t=>t.stop());st("Microphone autorisé ✓","ok");return true}catch(e){st("Microphone refusé : "+(e.name||"erreur"),"bad");add("Système","Autorise le microphone dans Chrome pour cette adresse.","system");return false}}
+function setStep(n){S.step=n;document.querySelectorAll(".step").forEach(e=>{const x=+e.dataset.step;e.classList.toggle("done",x<n);e.classList.toggle("current",x===n)});document.getElementById("prog").style.width=(Math.min(n-1,4)/4*100)+"%"}
+function startFlow(){if(S.started)return;S.started=true;setStep(1);add("Ordely",FLOW[0],"agent");speak(FLOW[0]);st("Ordely parle…","ok")}
+function process(t){add("Client",t,"client");document.getElementById("heard").style.display="block";document.getElementById("heard").textContent="🎤 Entendu : "+t;const q=t.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");let intent="NEEDS_CLARIFICATION",dec="PENDING",reply="";
+ if(/(oui|ey|nconfirmi|confirme|je confirme|ok|daccord|d'accord)/.test(q)){intent="CONFIRM_ORDER";dec="CONFIRMED";reply="Mrigel Ahmed. Nconfirmiw lcommande mte3ek. Merci w nharek zin.";S.status="CONFIRMED";setStep(5)}
+ else if(/(non|annule|annuler|nhebch|laa)/.test(q)){intent="CANCEL_ORDER";dec="CANCELLED";reply="D'accord. Nannuliw lcommande mte3ek. Merci.";S.status="CANCELLED";setStep(5)}
+ else if(/(modifier|modif|nbaddel|adresse|changer|badal)/.test(q)){intent="MODIFY_ORDER";dec="MODIFICATION_REQUESTED";reply="D'accord. Nnajmou nbaddlou l’adresse. A3tini l’adresse jdida wela confirme li hiya s7i7a.";S.status="MODIFICATION_REQUESTED";setStep(3)}
+ else if(/(rappelle|rappeler|baad|apres|après|heure|later|عاود)/.test(q)){intent="CALLBACK_REQUEST";dec="CALLBACK_REQUESTED";reply="D'accord. Nعاودoulك ba3d. La commande teb9a en attente de confirmation.";S.status="CALLBACK_REQUESTED";setStep(5)}
+ else {reply="Samahni, ma fhemtch مليح. T7eb tconfirmi, tannuli, wela tbaddel haja ?"}
+ document.getElementById("intent").textContent=intent;document.getElementById("decision").textContent=dec;document.getElementById("audit").textContent=dec==="PENDING"?"CHECK":"PASS";document.getElementById("orderStatus").textContent="Statut : "+S.status;document.getElementById("auditLine").textContent=dec==="PENDING"?"Aucune action critique exécutée.":"OrderStateMachine → "+S.status+" | Write-back simulé → OK | Audit → OK";add("Ordely",reply,"agent");speak(reply)}
+function sendText(){const e=document.getElementById("msg"),v=e.value.trim();if(!v)return;if(!S.started)startFlow();setTimeout(()=>process(v),250);e.value=""}
+async function listen(){if(!S.started)startFlow();if(!(await testMic()))return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){st("Reconnaissance vocale indisponible — utilise le champ texte","bad");return}try{if(S.recognition)S.recognition.stop()}catch(e){}const r=new SR();S.recognition=r;r.lang="ar-TN";r.continuous=false;r.interimResults=false;r.maxAlternatives=3;r.onstart=()=>st("🎙️ J’écoute…","listen");r.onresult=e=>process(e.results[0][0].transcript);r.onerror=e=>{if(e.error==="language-not-supported"){try{r.lang="fr-FR";r.start();return}catch(x){}}st("Reconnaissance : "+e.error,"bad")};r.onend=()=>st("Microphone prêt ✓","ok");try{r.start()}catch(e){st("Impossible de démarrer","bad")}}
+function repeatLast(){if(S.last)speak(S.last)}
+function quick(x){const m={confirm:"Ey, nconfirmi lcommande.",cancel:"La, annuli lcommande.",modify:"Nheb nbaddel l’adresse.",callback:"Nعاودouli ba3d."};if(!S.started)startFlow();setTimeout(()=>process(m[x]),400)}
+function resetAll(){location.reload()}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();S.installPrompt=e})
+async function installPWA(){if(S.installPrompt){S.installPrompt.prompt();await S.installPrompt.userChoice;S.installPrompt=null}else alert("Sur Chrome : menu ⋮ → Ajouter à l'écran d'accueil.")}
+</script>
+<script>if("serviceWorker"in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").catch(()=>{})}</script></body>
+</html>
