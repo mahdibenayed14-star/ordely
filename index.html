@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="ar-TN" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -36,11 +36,13 @@ footer{text-align:center;color:#7e8990;font-size:10px;margin-top:16px}
   <div class="brand"><div class="logo">O</div><div><h1>Ordely</h1><span class="badge">DEMO JURY • VOIX • TUNISIE</span></div></div>
   <button class="btn secondary" onclick="installPWA()">Installer</button>
  </div>
- <p><b>Agent IA de confirmation de commandes.</b> Démonstration vocale navigateur avec parcours métier contrôlé.</p>
+ <p><b>Agent IA de confirmation de commandes.</b> Démo vocale tunisienne — conversation courte, naturelle et guidée.</p>
+ <div class="notice" id="voiceMode">🎙️ Mode voix : tunisien (ar-TN) → arabe (ar) en secours. Le navigateur peut limiter la reconnaissance dialectale.</div>
  <div class="status"><span id="dot" class="dot"></span><span id="status">Microphone non testé</span></div>
  <button class="btn primary" onclick="startFlow()">▶ Démarrer</button>
  <button class="btn secondary" onclick="testMic()">🎤 Tester micro</button>
- <button class="btn secondary" onclick="listen()">🗣️ Parler</button>
+ <button class="btn primary" onclick="listen()">🗣️ Parler</button>
+ <button class="btn secondary" onclick="stopListen()">⏹️ Stop</button>
  <button class="btn secondary" onclick="repeatLast()">🔊 Répéter</button>
  <button class="btn secondary" onclick="resetAll()">↻ Réinitialiser</button>
 </section>
@@ -75,6 +77,7 @@ footer{text-align:center;color:#7e8990;font-size:10px;margin-top:16px}
  <div id="chat" class="chat"><div class="bubble system">Ordely prêt. Appuie sur « Démarrer ».</div></div>
  <div class="input"><input id="msg" placeholder="Ex. Ey nconfirmi / nheb nbaddel l'adresse / annuli..." onkeydown="if(event.key==='Enter')sendText()"><button class="btn primary" onclick="sendText()">Envoyer</button></div>
  <div id="heard" class="notice" style="display:none;margin-top:8px"></div>
+ <div class="notice" style="margin-top:8px">💡 Pour le jury : parle naturellement, par exemple « إي نأكد الكوموند » ou « لا، نحب نلغيها ».</div>
 </section>
 
 <section class="card">
@@ -98,31 +101,53 @@ footer{text-align:center;color:#7e8990;font-size:10px;margin-top:16px}
 <footer>Ordely prototype — aucune téléphonie réelle, aucun enregistrement audio et aucune base de production dans cette démo.</footer>
 </div>
 <script>
-const S={started:false,step:1,last:"",recognition:null,installPrompt:null,status:"NEW"};
+const S={started:false,step:0,last:"",recognition:null,status:"NEW",listening:false};
 const FLOW=[
- "Aslema Ahmed, ena Ordely. N3ayetlek 3la commande mte3ek : casque audio rouge, quantité 1, taille S, total 189 dinars. T7eb nconfirmiw lcommande ?",
- "Très bien. Tawa nثبتou l’adresse : 15 rue de Tunis, Sfax. Heya s7i7a ?",
- "Merci. Nثبتou numéro 20 123 456 w l’esm Ahmed Ben Ali. Kol chay s7i7 ?",
- "Mrigel. T7eb tconfirmi lcommande, tbaddel haja, tannuliha, wela nعاودولك ba3d ?"
+ {step:1,text:"عسلامة أحمد، معاك أورديلي. نعيطلك باش نأكدو الكوموند متاعك. عندك كاسك صوتي أحمر، الكمية واحد، والمقاس S يعني صغير. المجموع 189 دينار. نثبتوها؟"},
+ {step:2,text:"مريقل. الكوموند فيها كاسك صوتي أحمر، كمية واحد، والمقاس S صغير. هذا صحيح؟"},
+ {step:3,text:"باهي. توا نثبتو عنوان التوصيل: 15 نهج تونس، صفاقس. العنوان هذا صحيح؟"},
+ {step:4,text:"يعطيك الصحة. نثبتو الاسم ورقم التليفون: أحمد بن علي، 20 123 456. صحيح؟"},
+ {step:5,text:"مريقل. الكوموند جاهزة. تحب تأكدها، تلغيها، تبدل معلومة، ولا نعاودولك بعد شوية؟"}
 ];
-function add(who,txt,type){const c=document.getElementById("chat"),d=document.createElement("div");d.className="bubble "+type;d.innerHTML="<b>"+who+"</b><br>"+esc(txt);c.appendChild(d);c.scrollTop=c.scrollHeight}
+const YES=["اي","إي","ايه","إيوا","نعم","صحيح","سحيح","نأكد","نأكدها","أكد","موافق","مريقل","تمام","ok","daccord","d'accord","oui","نحب نأكد","نحب نأكدها","ثبتها"];
+const NO=["لا","لا لا","ما نحبش","موش صحيح","مش صحيح","غلط","annule","annuler","نلغي","نلغيها","نحب نلغي"];
+const MODIFY=["نبدل","نبدلها","نحب نبدل","نحب نغير","نغير","تبديل","تغيير","modif","modifier","عنوان جديد","رقم جديد","اسم جديد"];
+const CALLBACK=["عاود","عاودلي","عاودولي","كلمني","كلموني","اتصل بي","اتصل بيا","بعد ساعة","بعد شوية","من بعد","غدوة","rappelle","rappeler","callback","بعد"];
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function add(who,txt,type){const c=document.getElementById("chat"),d=document.createElement("div");d.className="bubble "+type;d.innerHTML="<b>"+esc(who)+"</b><br>"+esc(txt);c.appendChild(d);c.scrollTop=c.scrollHeight}
 function st(t,k=""){document.getElementById("status").textContent=t;document.getElementById("dot").className="dot "+k}
-function speak(t){if(!("speechSynthesis"in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const vs=speechSynthesis.getVoices();const v=vs.find(x=>/^ar-TN$/i.test(x.lang))||vs.find(x=>/^ar/i.test(x.lang))||vs.find(x=>/^fr-TN$/i.test(x.lang))||vs.find(x=>/^fr/i.test(x.lang));if(v){u.voice=v;u.lang=v.lang}else u.lang="fr-FR";u.rate=.93;speechSynthesis.speak(u);S.last=t}
+function normalize(t){return String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[’']/g," ").replace(/[.,!?؟،؛:()\-_/]/g," ").replace(/\s+/g," ").trim()}
+function hasAny(q,list){return list.some(x=>q.includes(normalize(x)))}
+function speak(t){if(!("speechSynthesis"in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const vs=speechSynthesis.getVoices();const v=vs.find(x=>/^ar-TN$/i.test(x.lang))||vs.find(x=>/^ar-(MA|DZ|SA|EG|AE)/i.test(x.lang))||vs.find(x=>/^ar/i.test(x.lang));if(v){u.voice=v;u.lang=v.lang}else u.lang="ar-SA";u.rate=.88;u.pitch=1;S.last=t;speechSynthesis.speak(u)}
+function setStep(n){S.step=n;document.querySelectorAll(".step").forEach(e=>{const x=+e.dataset.step;e.classList.toggle("done",x<n);e.classList.toggle("current",x===n)});document.getElementById("prog").style.width=(Math.min(Math.max(n-1,0),4)/4*100)+"%"}
+function updateBusiness(intent,dec,status){document.getElementById("intent").textContent=intent;document.getElementById("decision").textContent=dec;document.getElementById("audit").textContent=dec==="PENDING"?"CHECK":"PASS";document.getElementById("orderStatus").textContent="Statut : "+status;document.getElementById("auditLine").textContent=dec==="PENDING"?"Aucune action critique exécutée.":"OrderStateMachine → "+status+" | Write-back simulé → OK | Audit → OK"}
+function startFlow(){if(S.started)return;S.started=true;S.step=1;setStep(1);add("Ordely",FLOW[0].text,"agent");speak(FLOW[0].text);st("Ordely parle…","ok")}
+function process(t){
+ const raw=String(t||"").trim();if(!raw)return;add("Client",raw,"client");const heard=document.getElementById("heard");heard.style.display="block";heard.textContent="🎤 Entendu : "+raw;
+ const q=normalize(raw);let intent="NEEDS_CLARIFICATION",dec="PENDING",reply="",status=S.status;
+ if(hasAny(q,MODIFY)){intent="MODIFY_ORDER";dec="MODIFICATION_REQUESTED";status="MODIFICATION_REQUESTED";reply="أكيد. نجموا نبدلوا المعلومة. قولي شنوّة تحب تبدّل: العنوان، الاسم، الرقم، ولا المنتج؟";setStep(3)}
+ else if(hasAny(q,CALLBACK)){intent="CALLBACK_REQUEST";dec="CALLBACK_REQUESTED";status="CALLBACK_REQUESTED";reply="أكيد. نعاودولك بعد شوية. الكوموند تبقى معلّقة لين نأكدوها.";setStep(5)}
+ else if(hasAny(q,NO)){intent="CANCEL_ORDER";dec="CANCELLED";status="CANCELLED";reply="حاضر، نلغيولك الكوموند. يعطيك الصحة.";setStep(5)}
+ else if(hasAny(q,YES)){intent="CONFIRM_ORDER";dec="CONFIRMED";status="CONFIRMED";reply="مريقل، تأكدت الكوموند متاعك. يعطيك الصحة ونهارك زين.";setStep(5)}
+ else {
+   const product=/casque|كاسك|سماعات|احمر/.test(q), address=/عنوان|adresse|نهج|شارع|sfax|صفاقس/.test(q), phone=/\b\d{6,}\b|20\s*123\s*456/.test(q);
+   if(product){intent="PRODUCT_INFO";reply="سمعتك تحكي على المنتج. باش نثبت: كاسك صوتي أحمر، المقاس S صغير، والكمية واحد. هذا صحيح؟";setStep(2)}
+   else if(address){intent="ADDRESS_INFO";reply="باهي، نحكيو على العنوان. العنوان المسجل هو 15 نهج تونس، صفاقس. صحيح؟";setStep(3)}
+   else if(phone){intent="CONTACT_INFO";reply="سمعت رقم التليفون. باش نثبتو، الرقم المسجل هو 20 123 456. صحيح؟";setStep(4)}
+   else {reply="سامحني، ما فهمتش الكلمة مليح. تنجم تعاودها بكلمة بسيطة: «نأكد»، «نلغي»، «نبدل»، ولا «عاودلي بعد شوية»."}
+ }
+ S.status=status;updateBusiness(intent,dec,status);add("Ordely",reply,"agent");speak(reply)
+}
+function sendText(){const e=document.getElementById("msg"),v=e.value.trim();if(!v)return;if(!S.started)startFlow();setTimeout(()=>process(v),150);e.value=""}
 async function testMic(){if(!window.isSecureContext&&location.hostname!=="localhost"){st("HTTPS requis — page locale","bad");add("Système","Le microphone nécessite une origine sécurisée HTTPS.","system");return false}if(!navigator.mediaDevices?.getUserMedia){st("API micro indisponible","bad");return false}try{const x=await navigator.mediaDevices.getUserMedia({audio:true});x.getTracks().forEach(t=>t.stop());st("Microphone autorisé ✓","ok");return true}catch(e){st("Microphone refusé : "+(e.name||"erreur"),"bad");add("Système","Autorise le microphone dans Chrome pour cette adresse.","system");return false}}
-function setStep(n){S.step=n;document.querySelectorAll(".step").forEach(e=>{const x=+e.dataset.step;e.classList.toggle("done",x<n);e.classList.toggle("current",x===n)});document.getElementById("prog").style.width=(Math.min(n-1,4)/4*100)+"%"}
-function startFlow(){if(S.started)return;S.started=true;setStep(1);add("Ordely",FLOW[0],"agent");speak(FLOW[0]);st("Ordely parle…","ok")}
-function process(t){add("Client",t,"client");document.getElementById("heard").style.display="block";document.getElementById("heard").textContent="🎤 Entendu : "+t;const q=t.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");let intent="NEEDS_CLARIFICATION",dec="PENDING",reply="";
- if(/(oui|ey|nconfirmi|confirme|je confirme|ok|daccord|d'accord)/.test(q)){intent="CONFIRM_ORDER";dec="CONFIRMED";reply="Mrigel Ahmed. Nconfirmiw lcommande mte3ek. Merci w nharek zin.";S.status="CONFIRMED";setStep(5)}
- else if(/(non|annule|annuler|nhebch|laa)/.test(q)){intent="CANCEL_ORDER";dec="CANCELLED";reply="D'accord. Nannuliw lcommande mte3ek. Merci.";S.status="CANCELLED";setStep(5)}
- else if(/(modifier|modif|nbaddel|adresse|changer|badal)/.test(q)){intent="MODIFY_ORDER";dec="MODIFICATION_REQUESTED";reply="D'accord. Nnajmou nbaddlou l’adresse. A3tini l’adresse jdida wela confirme li hiya s7i7a.";S.status="MODIFICATION_REQUESTED";setStep(3)}
- else if(/(rappelle|rappeler|baad|apres|après|heure|later|عاود)/.test(q)){intent="CALLBACK_REQUEST";dec="CALLBACK_REQUESTED";reply="D'accord. Nعاودoulك ba3d. La commande teb9a en attente de confirmation.";S.status="CALLBACK_REQUESTED";setStep(5)}
- else {reply="Samahni, ma fhemtch مليح. T7eb tconfirmi, tannuli, wela tbaddel haja ?"}
- document.getElementById("intent").textContent=intent;document.getElementById("decision").textContent=dec;document.getElementById("audit").textContent=dec==="PENDING"?"CHECK":"PASS";document.getElementById("orderStatus").textContent="Statut : "+S.status;document.getElementById("auditLine").textContent=dec==="PENDING"?"Aucune action critique exécutée.":"OrderStateMachine → "+S.status+" | Write-back simulé → OK | Audit → OK";add("Ordely",reply,"agent");speak(reply)}
-function sendText(){const e=document.getElementById("msg"),v=e.value.trim();if(!v)return;if(!S.started)startFlow();setTimeout(()=>process(v),250);e.value=""}
-async function listen(){if(!S.started)startFlow();if(!(await testMic()))return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){st("Reconnaissance vocale indisponible — utilise le champ texte","bad");return}try{if(S.recognition)S.recognition.stop()}catch(e){}const r=new SR();S.recognition=r;r.lang="ar-TN";r.continuous=false;r.interimResults=false;r.maxAlternatives=3;r.onstart=()=>st("🎙️ J’écoute…","listen");r.onresult=e=>process(e.results[0][0].transcript);r.onerror=e=>{if(e.error==="language-not-supported"){try{r.lang="fr-FR";r.start();return}catch(x){}}st("Reconnaissance : "+e.error,"bad")};r.onend=()=>st("Microphone prêt ✓","ok");try{r.start()}catch(e){st("Impossible de démarrer","bad")}}
+function stopListen(){try{S.recognition?.stop()}catch(e){}S.listening=false;st("Microphone prêt ✓","ok")}
+function configureRecognition(r){
+ r.lang="ar-TN";r.continuous=false;r.interimResults=false;r.maxAlternatives=5;
+ try{if("phrases"in r && typeof SpeechRecognitionPhrase!=="undefined"){const P=["نأكد الكوموند","نأكدها","نلغي الكوموند","نحب نلغي","نحب نبدل العنوان","نحب نبدل الرقم","عاودلي بعد ساعة","بعد شوية","العنوان صحيح","صحيح","لا موش صحيح","كاسك أحمر","المقاس S","صغير","صفاقس","أحمد بن علي"];r.phrases=P.map(p=>new SpeechRecognitionPhrase(p,5));}}catch(e){}
+}
+async function listen(){if(!S.started)startFlow();if(!(await testMic()))return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){st("Reconnaissance indisponible — utilise le texte","bad");return}try{S.recognition?.stop()}catch(e){}const r=new SR();S.recognition=r;configureRecognition(r);S.listening=true;r.onstart=()=>st("🎙️ نسمع فيك… احكي توا","listen");r.onresult=e=>{process(e.results[0][0].transcript)};r.onerror=e=>{S.listening=false;const msg={"language-not-supported":"لغة التعرّف التونسية موش متوفرة في المتصفح.","no-speech":"ما سمعتش كلام. عاود احكي بصوت واضح.","network":"مشكل في خدمة التعرّف الصوتي.","not-allowed":"الميكرو موش مسموح.","service-not-allowed":"خدمة التعرّف الصوتي غير متاحة."}[e.error]||("Reconnaissance : "+e.error);st(msg,"bad");add("Système",msg+" تنجم تستعمل خانة الكتابة كحل احتياطي.","system")};r.onend=()=>{S.listening=false;if(document.getElementById("status").textContent.includes("نسمع"))st("Microphone prêt ✓","ok")};try{r.start()}catch(e){st("Impossible de démarrer","bad")}}
 function repeatLast(){if(S.last)speak(S.last)}
-function quick(x){const m={confirm:"Ey, nconfirmi lcommande.",cancel:"La, annuli lcommande.",modify:"Nheb nbaddel l’adresse.",callback:"Nعاودouli ba3d."};if(!S.started)startFlow();setTimeout(()=>process(m[x]),400)}
+function quick(x){const m={confirm:"إي، نأكد الكوموند.",cancel:"لا، نحب نلغي الكوموند.",modify:"نحب نبدل العنوان.",callback:"عاودولي بعد ساعة."};if(!S.started)startFlow();setTimeout(()=>process(m[x]),350)}
 function resetAll(){location.reload()}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();S.installPrompt=e})
 async function installPWA(){if(S.installPrompt){S.installPrompt.prompt();await S.installPrompt.userChoice;S.installPrompt=null}else alert("Sur Chrome : menu ⋮ → Ajouter à l'écran d'accueil.")}
