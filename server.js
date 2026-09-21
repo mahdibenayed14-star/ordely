@@ -10,9 +10,6 @@ const PORT = process.env.PORT || 10000;
 
 app.use(express.json());
 app.use(express.static('public'));
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'ordely-v6', version: '6.1.0', time: new Date().toISOString() }));
-
-const DG_URL = process.env.DEEPGRAM_AGENT_URL || 'wss://agent.deepgram.com/v1/agent/converse';
 
 const ORDER = Object.freeze({
   id: 'ORD-2026-0919',
@@ -25,176 +22,194 @@ const ORDER = Object.freeze({
   total: 189
 });
 
-const STATES = Object.freeze({ NEW:'NEW', VERIFYING:'VERIFYING', MODIFICATION_REQUESTED:'MODIFICATION_REQUESTED', CANCEL_REQUESTED:'CANCEL_REQUESTED', CONFIRMED:'CONFIRMED', CALLBACK_REQUESTED:'CALLBACK_REQUESTED', HUMAN_HANDOFF:'HUMAN_HANDOFF', DONE:'DONE' });
+const STATES = Object.freeze({
+  NEW:'NEW', VERIFYING:'VERIFYING', MODIFICATION_REQUESTED:'MODIFICATION_REQUESTED',
+  CANCEL_REQUESTED:'CANCEL_REQUESTED', CONFIRMED:'CONFIRMED',
+  CALLBACK_REQUESTED:'CALLBACK_REQUESTED', HUMAN_HANDOFF:'HUMAN_HANDOFF', DONE:'DONE'
+});
 
 function makeState() {
-  return { status: STATES.NEW, phase: 'greeting', confirmed: { product:false, address:false, identity:false }, callbackAt:null, turn:0 };
+  return {
+    status: STATES.NEW,
+    phase: 'greeting',
+    confirmed: { product:false, address:false, identity:false, final:false },
+    callbackAt: null,
+    turn: 0
+  };
 }
 
 function transition(s, next) {
   const allowed = {
-    NEW: ['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CALLBACK_REQUESTED'],
-    VERIFYING: ['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CONFIRMED','CALLBACK_REQUESTED','HUMAN_HANDOFF'],
-    MODIFICATION_REQUESTED: ['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CALLBACK_REQUESTED','CONFIRMED'],
-    CANCEL_REQUESTED: ['CANCEL_REQUESTED','DONE'],
-    CONFIRMED: ['CONFIRMED','DONE'],
-    CALLBACK_REQUESTED: ['CALLBACK_REQUESTED','VERIFYING','DONE'],
-    HUMAN_HANDOFF: ['HUMAN_HANDOFF','DONE'],
-    DONE: ['DONE']
+    NEW:['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CALLBACK_REQUESTED'],
+    VERIFYING:['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CONFIRMED','CALLBACK_REQUESTED','HUMAN_HANDOFF'],
+    MODIFICATION_REQUESTED:['VERIFYING','MODIFICATION_REQUESTED','CANCEL_REQUESTED','CALLBACK_REQUESTED','CONFIRMED'],
+    CANCEL_REQUESTED:['CANCEL_REQUESTED','DONE'],
+    CONFIRMED:['CONFIRMED','DONE'],
+    CALLBACK_REQUESTED:['CALLBACK_REQUESTED','VERIFYING','DONE'],
+    HUMAN_HANDOFF:['HUMAN_HANDOFF','DONE'],
+    DONE:['DONE']
   };
-  if (!allowed[s.status]?.includes(next)) return false;
-  s.status = next;
-  return true;
+  if (allowed[s.status]?.includes(next)) { s.status = next; return true; }
+  return false;
 }
 
-function detectState(text, state) {
-  const q = String(text || '').toLowerCase();
-  state.turn += 1;
-  if (/(الغى|نلغي|نلغيه|annul|annule|cancel|ما نحبش|مانحبش)/i.test(q)) transition(state, STATES.CANCEL_REQUESTED);
-  else if (/(بعد|ba3d|بعد ساعة|عاود|نعاود|rappel|callback|later)/i.test(q)) transition(state, STATES.CALLBACK_REQUESTED);
-  else if (/(بدل|نبدل|تبدل|نغير|changer|modif|wrong|غلط)/i.test(q)) transition(state, STATES.MODIFICATION_REQUESTED);
-  else if (/(اي|إي|ايه|نعم|oui|yes|صحيح|س7ي7|s7i7|مريقل|مريقلة|confirm)/i.test(q)) {
-    if (state.phase === 'product') state.confirmed.product = true;
-    if (state.phase === 'address') state.confirmed.address = true;
-    if (state.phase === 'identity') state.confirmed.identity = true;
-    if (state.confirmed.product && state.confirmed.address && state.confirmed.identity) transition(state, STATES.CONFIRMED);
-    else transition(state, STATES.VERIFYING);
-  }
-  return state;
+function norm(t) {
+  return String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[’']/g,"'").trim();
 }
 
-function prompt(state) {
-  return `
-Tu es Ordely, agent tunisien de confirmation de commandes par téléphone.
-
-LANGUE — OBLIGATOIRE
-- Parle en DERJA TUNISIENNE naturelle. Jamais d'arabe standard scolaire.
-- Utilise un tunisien parlé au téléphone, court, spontané et chaleureux.
-- Tu peux écrire en arabe tunisien ou en translittération tunisienne quand c'est naturel.
-- Comprends le code-switching Derja/français et la translittération: "n7eb", "nثبت", "s7i7", "smol", "ba3d sa3a".
-- Ne traduis pas la Derja vers le français pour faire joli.
-- Une ou deux phrases maximum par tour.
-
-CONVERSATION
-- Le client peut t'interrompre à tout moment.
-- Une interruption annule ta phrase en cours: ne la répète jamais et ne recommence jamais le dialogue.
-- Réponds à la dernière information du client et continue exactement depuis l'état courant.
-- Ne repose pas une question dont la réponse est déjà confirmée.
-- Si tu n'as pas compris, demande une reformulation très courte en Derja.
-- N'invente aucune information.
-
-COMMANDE
-ID: ${ORDER.id}
-Nom: ${ORDER.name}
-Téléphone: ${ORDER.phone}
-Produit: ${ORDER.product}
-Quantité: ${ORDER.qty}
-Taille: ${ORDER.size}
-Adresse: ${ORDER.address}
-Total: ${ORDER.total} dinars
-
-ÉTAT INTERNE
-status=${state.status}; phase=${state.phase}; produit=${state.confirmed.product}; adresse=${state.confirmed.address}; identité=${state.confirmed.identity}; callback=${state.callbackAt ?? 'none'}
-
-OBJECTIF
-1. Vérifier produit/quantité/taille.
-2. Vérifier adresse.
-3. Vérifier nom/téléphone.
-4. Demander confirmation finale.
-5. Si modification, identifier précisément ce qui change puis reprendre la vérification.
-6. Si annulation, confirmer l'annulation.
-7. Si rappel, demander/valider le moment du rappel.
-
-SÉCURITÉ
-- Tu ne prétends jamais avoir modifié, annulé ou confirmé dans un système externe sans outil explicite.
-- Les changements d'état sont pilotés côté serveur; ton rôle est conversationnel.
-`;
+function classify(text) {
+  const q = norm(text);
+  if (/(الغى|نلغي|نلغيه|annul|annule|cancel|ما نحبش|مانحبش|ma n7ebch)/i.test(q)) return 'cancel';
+  if (/(بدل|نبدل|تبدل|نغير|changer|modif|wrong|غلط|ghalet)/i.test(q)) return 'modify';
+  if (/(بعد|ba3d|بعد ساعة|بعد شوية|عاود|نعاود|rappel|callback|later|sa3a)/i.test(q)) return 'callback';
+  if (/(اي|إي|ايه|نعم|oui|yes|صحيح|s7i7|مريقل|مريقلة|confirm|ok|okay|d'accord)/i.test(q)) return 'yes';
+  if (/(لا|لا لا|non|no|nn|manich|مش|موش)/i.test(q)) return 'no';
+  if (/(سمول|smol|small|s\b)/i.test(q)) return 'size';
+  if (/(احمر|حمراء|rouge|red)/i.test(q)) return 'red';
+  if (/(عنوان|adresse|address|دار|نهج|شارع|sfax|صفاقس)/i.test(q)) return 'address';
+  if (/(اسم|nom|name|احمد|بن علي)/i.test(q)) return 'identity';
+  if (/(تليفون|هاتف|numero|رقم|phone|20)/i.test(q)) return 'phone';
+  return 'other';
 }
 
-function send(ws, obj) { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
+function nextFreeTurn(state, text) {
+  const intent = classify(text);
+  state.turn++;
 
-wss.on('connection', (client) => {
-  if (!process.env.DEEPGRAM_API_KEY) {
-    send(client, { type:'Error', message:'DEEPGRAM_API_KEY manquante côté serveur.' });
-    client.close();
-    return;
-  }
-  if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_VOICE_ID) {
-    send(client, { type:'Error', message:'ELEVENLABS_API_KEY ou ELEVENLABS_VOICE_ID manquante. Configure le TTS tunisien.' });
-    client.close();
-    return;
+  if (intent === 'cancel') {
+    transition(state, STATES.CANCEL_REQUESTED);
+    state.phase = 'cancel';
+    return 'واضح. نثبتلك إلغاء الكوموند. ما عادش باش تتبعث.';
   }
 
-  const state = makeState();
-  const dg = new WebSocket(DG_URL, { headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}` } });
+  if (intent === 'callback') {
+    transition(state, STATES.CALLBACK_REQUESTED);
+    state.phase = 'callback';
+    return 'مريقل. نعاودو نكلموك بعد شوية. تحب بعد ساعة بالضبط؟';
+  }
 
-  dg.on('open', () => {
-    const settings = {
-      type: 'Settings',
-      tags: ['ordely','order-confirmation','tunisia','derja'],
-      audio: {
-        input: { encoding:'linear16', sample_rate:16000 },
-        output: { encoding:'linear16', sample_rate:24000, container:'none' }
-      },
-      agent: {
-        greeting: 'Aslema Ahmed, ena Ordely. N3ayetlek 3la commande mte3ek. Nثبتوha m3a ba3dhna?',
-        listen: {
-          provider: {
-            type:'deepgram', model:'nova-3', language:'ar-TN', smart_format:false,
-            keyterms:['Ordely','commande','nثبتو','نثبتو','صفاقس','سمول','smol','S','20 123 456','نهج تونس']
-          }
-        },
-        think: {
-          provider: { type:'open_ai', model:process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature:0.2 },
-          prompt: prompt(state)
-        },
-        speak: {
-          provider: {
-            type:'eleven_labs',
-            model_id:process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
-            language_code:'ar'
-          },
-          endpoint: {
-            url:'wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/multi-stream-input',
-            headers:{ 'xi-api-key': process.env.ELEVENLABS_API_KEY }
-          }
-        }
-      }
-    };
-    dg.send(JSON.stringify(settings));
-    send(client, { type:'State', state, order:ORDER });
-  });
+  if (intent === 'modify') {
+    transition(state, STATES.MODIFICATION_REQUESTED);
+    state.phase = 'modification';
+    return 'مريقل، شنوّة تحب تبدّل في الكوموند؟';
+  }
 
-  dg.on('message', (data, isBinary) => {
-    if (isBinary) {
-      if (client.readyState === WebSocket.OPEN) client.send(data);
-      return;
+  if (state.phase === 'greeting') {
+    transition(state, STATES.VERIFYING);
+    state.phase = 'product';
+    return 'عندك كاسك صوتي أحمر، الكمية واحد، والمقاس S يعني smol. صحيح؟';
+  }
+
+  if (state.phase === 'product') {
+    if (intent === 'yes' || intent === 'red' || intent === 'size') {
+      state.confirmed.product = true;
+      state.phase = 'address';
+      return 'مريقل. العنوان هو 15 نهج تونس، صفاقس. صحيح؟';
     }
+    if (intent === 'no') return 'شنوّة الغالط في المنتوج ولا في المقاس؟';
+    return 'نثبتو المنتوج والمقاس: كاسك أحمر، S smol. صحيح؟';
+  }
+
+  if (state.phase === 'address') {
+    if (intent === 'yes' || intent === 'address') {
+      state.confirmed.address = true;
+      state.phase = 'identity';
+      return 'تمام. الاسم أحمد بن علي والتليفون 20 123 456. صحيح؟';
+    }
+    if (intent === 'no') return 'شنوّة العنوان الصحيح؟';
+    return 'العنوان 15 نهج تونس، صفاقس. صحيح؟';
+  }
+
+  if (state.phase === 'identity') {
+    if (intent === 'yes' || intent === 'identity' || intent === 'phone') {
+      state.confirmed.identity = true;
+      state.phase = 'final';
+      return 'باهي. الكل واضح: الكاسك الأحمر S، العنوان في صفاقس، والمبلغ 189 دينار. نأكدولك الكوموند؟';
+    }
+    if (intent === 'no') return 'شنوّة المعلومة الغالطة: الاسم ولا التليفون؟';
+    return 'نأكد الاسم والتليفون: أحمد بن علي، 20 123 456. صحيح؟';
+  }
+
+  if (state.phase === 'final') {
+    if (intent === 'yes') {
+      state.confirmed.final = true;
+      transition(state, STATES.CONFIRMED);
+      state.phase = 'done';
+      return 'مريقل أحمد، الكوموند تأكدت. يعطيك الصحة ونهارك مبروك.';
+    }
+    if (intent === 'no') return 'مريقل، ما نأكدهاش توة. شنوّة تحب نبدّل؟';
+    return 'نأكدولك الكوموند ولا تحب تبدّل حاجة؟';
+  }
+
+  if (state.phase === 'modification') {
+    state.phase = 'product';
+    transition(state, STATES.VERIFYING);
+    return 'فهمتك. نعاودو نثبتو الكوموند من جديد، شنوّة تحب يكون المنتوج والمقاس؟';
+  }
+
+  if (state.phase === 'callback') {
+    if (intent === 'yes') {
+      state.callbackAt = 'بعد ساعة';
+      return 'مريقل، بعد ساعة نعاودو نكلموك. خلي التليفون محلول وشارجى.';
+    }
+    return 'وقتاش تحب نعاودو نكلموك؟';
+  }
+
+  return 'سمحني، ما فهمتكش مليح. تعاودلي باختصار؟';
+}
+
+function send(ws, obj) {
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function sendState(ws, state) {
+  send(ws, { type:'State', state, order:ORDER, mode:'FREE' });
+}
+
+wss.on('connection', client => {
+  const state = makeState();
+
+  send(client, { type:'SettingsApplied', mode:'FREE', message:'Mode démo gratuit actif' });
+  sendState(client, state);
+
+  client.on('message', (data, isBinary) => {
+    if (isBinary) return;
+
     let msg;
     try { msg = JSON.parse(data.toString()); } catch { return; }
 
-    if (msg.type === 'ConversationText' && msg.role === 'user') {
-      detectState(msg.content, state);
-      send(client, { type:'State', state, order:ORDER });
+    if (msg.type === 'InjectUserMessage') {
+      const text = String(msg.text || '').trim();
+      if (!text) return;
+
+      send(client, { type:'UserStartedSpeaking' });
+      send(client, { type:'ConversationText', role:'user', content:text });
+
+      const reply = nextFreeTurn(state, text);
+      sendState(client);
+
+      setTimeout(() => {
+        send(client, { type:'ConversationText', role:'assistant', content:reply });
+      }, 180);
     }
-    if (msg.type === 'UserStartedSpeaking') {
+
+    if (msg.type === 'Interrupt') {
       send(client, { type:'UserStartedSpeaking' });
     }
-    if (msg.type === 'SettingsApplied') send(client, { type:'SettingsApplied', state });
-    if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(msg));
+
+    if (msg.type === 'ForceEndTurn') {
+      send(client, { type:'AgentAudioDone' });
+    }
   });
-
-  dg.on('error', err => send(client, { type:'Error', message:`Deepgram: ${err.message}` }));
-  dg.on('close', () => { if (client.readyState === WebSocket.OPEN) client.close(); });
-
-  client.on('message', (data, isBinary) => {
-    if (dg.readyState !== WebSocket.OPEN) return;
-    if (isBinary) { dg.send(data); return; }
-    let msg; try { msg = JSON.parse(data.toString()); } catch { return; }
-    if (['Interrupt','InjectUserMessage','ForceEndTurn'].includes(msg.type)) dg.send(JSON.stringify(msg));
-  });
-
-  client.on('close', () => { try { dg.close(); } catch {} });
 });
 
-server.listen(PORT, '0.0.0.0', () => console.log(`Ordely V6.1 listening on :${PORT}`));
+app.get('/health', (_req, res) => res.json({
+  ok:true, service:'ordely', version:'7.0.0-free', mode:'FREE',
+  time:new Date().toISOString()
+}));
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Ordely V7 FREE listening on :${PORT}`);
+});
