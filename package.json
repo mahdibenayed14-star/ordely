@@ -1,16 +1,1 @@
-{
-  "name": "ordely-final-demo",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.21.2",
-    "ws": "^8.18.0"
-  },
-  "engines": {
-    "node": ">=20"
-  }
-}
+{"name":"ordely-v9","version":"9.0.0","private":true,"type":"module","scripts":{"start":"node server.js"},"dependencies":{"express":"^4.21.2","ws":"^8.18.0"},"engines":{"node":">=20"}}
