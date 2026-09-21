@@ -1,209 +1,84 @@
+
 <!doctype html>
-<html lang="ar-TN" dir="ltr">
+<html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#087f6f">
-<title>Ordely — V7 Free Tunisian Demo</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ordely — Confirmation IA</title>
 <style>
-:root{--brand:#087f6f;--ink:#172033;--muted:#65727c;--bg:#f2f6f6;--card:#fff;--line:#dbe4e4;--agent:#e4f5f1;--client:#edf1f3;--danger:#b42318}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:900px;margin:auto;padding:14px}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 7px 25px #17362b0b}
-.hero{background:linear-gradient(135deg,#fff,#e8f7f3)}h1{margin:0 0 5px}.muted{color:var(--muted);line-height:1.5;font-size:13px}
-.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#e8f5f1;color:#086c5e;font-size:11px;font-weight:900}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:11px;padding:11px 14px;font-weight:800;cursor:pointer}
-.primary{background:var(--brand);color:#fff}.secondary{background:#edf2f3}.danger{background:#fff0ed;color:var(--danger)}
-button:disabled{opacity:.45}.status{margin-top:10px;font-weight:800;font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.field{background:#fafcfc;border:1px solid var(--line);border-radius:10px;padding:9px}
-.field small{display:block;color:var(--muted);font-size:10px}.field b{display:block;margin-top:3px}
-.chat{min-height:360px;max-height:58vh;overflow:auto;background:#f8fafb;border:1px solid var(--line);border-radius:14px;padding:10px}
-.bubble{max-width:92%;padding:10px 12px;border-radius:14px;margin:7px 0;line-height:1.5;white-space:pre-wrap}.agent{background:var(--agent)}
-.client{background:var(--client);margin-left:auto}.system{background:#14272b;color:#eef6f4;font:12px ui-monospace,monospace}
-.statebar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.state{padding:6px 9px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:11px}
-.state b{display:block;margin-top:2px}.inputrow{display:flex;gap:8px;margin-top:10px}.inputrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:11px;padding:11px}
-@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#07111f;color:#edf4ff}
+.wrap{max-width:1180px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+h1{margin:0;font-size:27px}.sub{color:#91a4bc}.grid{display:grid;grid-template-columns:330px 1fr;gap:16px;margin-top:16px}
+.card{background:#0d1b2d;border:1px solid #1d3149;border-radius:18px;padding:16px;box-shadow:0 10px 30px #0003}
+select,button,input{font:inherit;border-radius:11px;border:1px solid #29415d;background:#0a1625;color:#fff;padding:11px}
+button{cursor:pointer}.primary{background:#1769e0;border-color:#1769e0}.danger{background:#6b2028}
+.row{display:flex;gap:8px;flex-wrap:wrap}.kv{display:grid;grid-template-columns:95px 1fr;gap:7px;margin-top:12px}.muted{color:#8fa4bc}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#19324f;margin:3px;font-size:12px}
+.chat{height:420px;overflow:auto;padding:8px;background:#081321;border-radius:14px}.msg{max-width:82%;padding:10px 12px;margin:9px 0;border-radius:14px;line-height:1.45}.bot{background:#15375a}.me{background:#25321f;margin-left:auto}
+textarea{width:100%;box-sizing:border-box;min-height:68px;margin-top:10px;border-radius:12px;background:#081321;color:white;border:1px solid #29415d;padding:10px}
+.small{font-size:12px}.scenario{padding:8px 0;border-top:1px solid #1d3149}
+@media(max-width:850px){.grid{grid-template-columns:1fr}.chat{height:330px}}
 </style>
 </head>
-<body>
-<div class="wrap">
-<section class="hero">
-<h1>🎙️ Ordely</h1>
-<span class="pill">V7 FREE · DERJA TUNISIENNE · MACHINE D'ÉTAT</span>
-<p class="muted">Démo autonome gratuite. Aucun compte API ni clé payante n'est nécessaire.</p>
-<div class="status" id="status">● Prêt — appuie sur Démarrer</div>
-<div class="actions">
-<button class="primary" id="start">▶ Démarrer</button>
-<button class="secondary" id="mic">🎤 Parler</button>
-<button class="danger" id="stop">⏹ Arrêter</button>
-</div>
-</section>
-
-<section class="card">
-<b>Commande #ORD-2026-0919</b>
-<div class="grid" style="margin-top:9px">
-<div class="field"><small>الاسم</small><b>أحمد بن علي</b></div>
-<div class="field"><small>التليفون</small><b>20 123 456</b></div>
-<div class="field"><small>المنتوج</small><b>كاسك صوتي أحمر</b></div>
-<div class="field"><small>المقاس</small><b>S — smol</b></div>
-<div class="field"><small>العنوان</small><b>15 نهج تونس، صفاقس</b></div>
-<div class="field"><small>الكمية</small><b>1</b></div>
-<div class="field"><small>المبلغ</small><b>189 دينار</b></div>
-<div class="field"><small>état</small><b id="state">NEW</b></div>
-</div>
-</section>
-
-<section class="card">
-<h3 style="margin-top:0">Conversation live</h3>
+<body><div class="wrap">
+<div class="top"><div><h1>Ordely <span class="muted">/ FINAL DEMO</span></h1><div class="sub">Confirmation de commandes — Derja tunisienne</div></div><span class="badge">100% FREE • local DB</span></div>
+<div class="grid">
+<aside class="card">
+<h3>Commande test</h3>
+<select id="orders"></select>
+<div id="info" class="kv"></div>
+<div class="row" style="margin-top:14px"><button class="primary" onclick="start()">▶ Démarrer</button><button onclick="stopSpeak()">■ Stop voix</button></div>
+<h3>Scénarios</h3>
+<div class="scenario">🛒 Garder un produit / enlever un autre</div>
+<div class="scenario">📍 Demander puis modifier l'adresse</div>
+<div class="scenario">📞 Ajouter un autre numéro</div>
+<div class="scenario">🎨 Changer la couleur</div>
+<div class="scenario">📏 Changer la taille</div>
+<div class="scenario">🔢 Changer la quantité</div>
+<div class="scenario">💰 Demander le prix</div>
+<div class="scenario">⏱ Demander un rappel dans 1h</div>
+<div class="scenario">❌ Annuler la commande</div>
+</aside>
+<main class="card">
+<div class="row"><span id="status" class="badge">NEW</span><span id="phase" class="badge">product</span><span id="turn" class="badge">tour 0</span></div>
 <div id="chat" class="chat"></div>
-<div class="inputrow">
-<input id="text" placeholder="اكتب أو استعمل الميكرو...">
-<button class="primary" id="send">Envoyer</button>
+<div class="row" style="margin-top:10px">
+<button class="primary" onclick="listen()">🎙 Parler</button>
+<button onclick="sendText()">Envoyer</button>
 </div>
-<div class="statebar">
-<div class="state">Phase<b id="phase">greeting</b></div>
-<div class="state">Produit<b id="product">—</b></div>
-<div class="state">Adresse<b id="address">—</b></div>
-<div class="state">Identité<b id="identity">—</b></div>
-</div>
-</section>
-
-<section class="card">
-<b>🎤 Mode vocal gratuit</b>
-<p class="muted">Sur Android/Chrome, le bouton Parler utilise la reconnaissance vocale du navigateur lorsqu'elle est disponible. Le bouton Envoyer permet de tester la conversation même si le STT du navigateur n'est pas disponible.</p>
-</section>
-</div>
-
+<textarea id="input" placeholder="Texte de secours : ex. « خلي كان الـ Huawei ونحي الـ Oppo »"></textarea>
+<div class="small muted">Le navigateur utilise la reconnaissance vocale disponible sur l'appareil (ar-TN si supporté) et la synthèse vocale disponible. Le serveur gère la base, la logique métier et les changements de commande.</div>
+</main>
+</div></div>
 <script>
-let ws=null,running=false,recognition=null,speaking=false;
-const synth=window.speechSynthesis;
-const $=id=>document.getElementById(id),chat=$('chat');
-
-function log(text,who='system'){
-  const d=document.createElement('div');
-  d.className='bubble '+who;
-  d.textContent=text;
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
-}
-function status(t){$('status').textContent=t}
-
+let ws,rec,speaking=false,currentOrder=null;
+const $=id=>document.getElementById(id);
 function connect(){
-  const proto=location.protocol==='https:'?'wss':'ws';
-  ws=new WebSocket(proto+'://'+location.host+'/voice');
-
-  ws.onopen=()=>status('🟢 Ordely connecté — prêt à parler');
-  ws.onclose=()=>{running=false;status('Connexion fermée')};
-  ws.onerror=()=>status('🔴 Erreur WebSocket');
-
-  ws.onmessage=e=>{
-    if(typeof e.data!=='string')return;
-    let m;try{m=JSON.parse(e.data)}catch{return}
-
-    if(m.type==='SettingsApplied'){
-      status('🟢 Mode FREE actif — Ordely est prêt');
-      return;
-    }
-
-    if(m.type==='ConversationText'){
-      if(m.role==='user')log(m.content,'client');
-      if(m.role==='assistant'){
-        log(m.content,'agent');
-        speak(m.content);
-      }
-    }
-
-    if(m.type==='State'&&m.state){
-      $('state').textContent=m.state.status;
-      $('phase').textContent=m.state.phase;
-      $('product').textContent=m.state.confirmed.product?'OK':'—';
-      $('address').textContent=m.state.confirmed.address?'OK':'—';
-      $('identity').textContent=m.state.confirmed.identity?'OK':'—';
-    }
-
-    if(m.type==='UserStartedSpeaking'){
-      if(synth)synth.cancel();
-      speaking=false;
-    }
-  };
+ ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/voice");
+ ws.onmessage=e=>{const m=JSON.parse(e.data);
+  if(m.type==="assistant"){add("bot",m.text); speak(m.text)}
+  if(m.type==="user") add("me",m.text);
+  if(m.type==="state"){renderState(m); refreshOrder(m.order||currentOrder)}
+ };
 }
-
-function sendText(text){
-  if(!ws||ws.readyState!==WebSocket.OPEN)return;
-  text=String(text||'').trim();
-  if(!text)return;
-  if(synth)synth.cancel();
-  ws.send(JSON.stringify({type:'InjectUserMessage',text}));
-  $('text').value='';
+async function load(){
+ const a=await fetch("/api/orders"); const orders=await a.json();
+ $("orders").innerHTML=orders.map(o=>`<option value="${o.id}">${o.id} — ${o.customer} — ${o.total} DT</option>`).join("");
+ currentOrder=orders.find(x=>x.id==="ORD-DEMO-MULTI")||orders[0]; $("orders").value=currentOrder.id; showList(orders); loadOrder(currentOrder.id);
 }
-
-function speak(text){
-  if(!synth)return;
-  synth.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='ar-TN';
-  u.rate=.92;
-  u.pitch=1;
-  u.onstart=()=>{speaking=true;status('🗣️ Ordely parle — tu peux l’interrompre')};
-  u.onend=()=>{speaking=false;status('🟢 À toi')};
-  u.onerror=()=>{speaking=false;status('🟢 Réponse affichée — voix indisponible')};
-  synth.speak(u);
+async function showList(orders){ $("orders").onchange=()=>loadOrder($("orders").value); }
+async function loadOrder(id){const r=await fetch("/api/orders/"+id); currentOrder=await r.json(); renderInfo(currentOrder);}
+function renderInfo(o){if(!o)return; $("info").innerHTML=`<b>Client</b><span>${o.customer?.name||""}</span><b>Tél.</b><span>${o.customer?.phone||""}</span><b>Produits</b><span>${(o.items||[]).map(i=>`${i.product?.name} ${i.variant||""} ${i.size||""} ×${i.qty}`).join("<br>")}</span><b>Adresse</b><span>${o.customer?.address||""}</span><b>Total</b><span>${o.total} DT</span>`; $("status").textContent=o.status;}
+function renderState(m){$("phase").textContent=m.state?.phase||"";$("turn").textContent="tour "+(m.state?.turn||0); if(m.order)renderInfo({...m.order,customer:m.customer||currentOrder?.customer});}
+function refreshOrder(o){if(o)loadOrder(o.id)}
+function add(who,text){const d=document.createElement("div");d.className="msg "+who;d.textContent=text;$("chat").appendChild(d);$("chat").scrollTop=99999}
+function start(){ $("chat").innerHTML=""; ws.send(JSON.stringify({type:"select",orderId:$("orders").value})); setTimeout(()=>ws.send(JSON.stringify({type:"start"})),120);}
+function sendText(){const v=$("input").value.trim();if(!v)return;$("input").value="";ws.send(JSON.stringify({type:"user",text:v}));}
+function listen(){
+ if(!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)){alert("Reconnaissance vocale indisponible. Utilise le champ texte.");return}
+ const R=window.SpeechRecognition||window.webkitSpeechRecognition; rec=new R();rec.lang="ar-TN";rec.interimResults=false;rec.continuous=false;
+ rec.onresult=e=>{const t=e.results[0][0].transcript; $("input").value=t; sendText()}; rec.start();
 }
-
-function start(){
-  if(running)return;
-  running=true;
-  connect();
-  setTimeout(()=>{
-    if(ws&&ws.readyState===WebSocket.OPEN)
-      ws.send(JSON.stringify({type:'InjectUserMessage',text:'bonjour'}));
-  },400);
-}
-
-function stop(){
-  running=false;
-  if(recognition){try{recognition.stop()}catch{}}
-  if(synth)synth.cancel();
-  try{ws?.close()}catch{}
-  status('⏹ Arrêté');
-}
-
-function startMic(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){
-    status('⚠️ STT navigateur indisponible — utilise le champ texte');
-    return;
-  }
-  if(recognition){try{recognition.stop()}catch{}}
-
-  recognition=new SR();
-  recognition.lang='ar-TN';
-  recognition.continuous=false;
-  recognition.interimResults=false;
-  recognition.maxAlternatives=1;
-
-  recognition.onstart=()=>{
-    if(synth)synth.cancel();
-    status('🎤 Je t’écoute…');
-    if(ws?.readyState===WebSocket.OPEN)
-      ws.send(JSON.stringify({type:'Interrupt'}));
-  };
-
-  recognition.onresult=e=>{
-    const text=e.results?.[0]?.[0]?.transcript||'';
-    if(text)sendText(text);
-  };
-
-  recognition.onerror=e=>status('⚠️ Micro/STT: '+(e.error||'erreur'));
-  recognition.onend=()=>{if(running&&!speaking)status('🟢 À toi')};
-
-  try{recognition.start()}catch{}
-}
-
-$('start').onclick=start;
-$('stop').onclick=stop;
-$('mic').onclick=startMic;
-$('send').onclick=()=>sendText($('text').value);
-$('text').addEventListener('keydown',e=>{if(e.key==='Enter')sendText($('text').value)});
-</script>
-</body>
-</html>
+function speak(text){stopSpeak(); if(!("speechSynthesis" in window))return; const u=new SpeechSynthesisUtterance(text);u.lang="ar-TN";u.rate=.92;u.onstart=()=>speaking=true;u.onend=()=>speaking=false;speechSynthesis.speak(u);}
+function stopSpeak(){if("speechSynthesis" in window)speechSynthesis.cancel();speaking=false}
+connect();load();
+</script></body></html>
